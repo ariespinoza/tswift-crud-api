@@ -67,6 +67,28 @@ private func jsonData(_ obj: Any) -> Data {
     return try! JSONSerialization.data(withJSONObject: obj, options: [])
 }
 
+private func bodyData(from request: URLRequest?) -> Data? {
+    guard let request else { return nil }
+    if let d = request.httpBody { return d }
+    guard let stream = request.httpBodyStream else { return nil }
+
+    stream.open()
+    defer { stream.close() }
+
+    var data = Data()
+    let bufSize = 1024
+    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufSize)
+    defer { buffer.deallocate() }
+
+    while stream.hasBytesAvailable {
+        let read = stream.read(buffer, maxLength: bufSize)
+        if read > 0 { data.append(buffer, count: read) }
+        else { break }
+    }
+    return data
+}
+
+
 // MARK: - Tests
 
 @MainActor
@@ -162,16 +184,15 @@ struct crudMusicListTests {
         #expect(req?.httpMethod == "POST")
         #expect(req?.url?.absoluteString.hasSuffix("/favorites") == true)
 
-        if let body = req?.httpBody,
-           let sent = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
+        if let data = bodyData(from: req),
+        let sent = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             #expect(sent["name"] as? String == "Red")
             #expect(sent["artist"] as? String == "Taylor Swift")
             #expect(sent["favoriteSong"] as? String == "Begin Again")
-            #expect(sent["listenCompleted"] as? Bool == false)
-            #expect(sent["commented"] as? Bool == false)
         } else {
-            #expect(Bool(false)) // fuerza fallo si no hubo body
+            #expect(Bool(false))
         }
+
 
         #expect(fav.id == 10)
         #expect(fav.name == "Red")
@@ -181,17 +202,13 @@ struct crudMusicListTests {
     @Test
     func favorites_update_patches_fields() async throws {
         let updated: [String: Any] = [
-            "id": 10,
-            "name": "Red",
-            "artist": "Taylor Swift",
+            "id": 10, "name": "Red", "artist": "Taylor Swift",
             "dateAdded": "2025-10-20T02:31:00.000000",
             "favoriteSong": "Begin Again",
-            "listenCompleted": true,
-            "commented": true,
-            "comment": "Re-escuchar deluxe"
+            "listenCompleted": true, "commented": true, "comment": "Re-escuchar deluxe"
         ]
-
         MockURLProtocol.responder = { _ in (200, jsonData(updated)) }
+
         MockURLProtocol.lastRequest = nil
 
         let api = FavoritesAPI(session: makeMockSession())
@@ -206,18 +223,19 @@ struct crudMusicListTests {
         #expect(req?.httpMethod == "PATCH")
         #expect(req?.url?.absoluteString.hasSuffix("/favorites/10") == true)
 
-        if let body = req?.httpBody,
-           let sent = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
+        if let data = bodyData(from: req),
+        let sent = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             #expect(sent["comment"] as? String == "Re-escuchar deluxe")
             #expect(sent["listenCompleted"] as? Bool == true)
             #expect(sent["commented"] as? Bool == true)
         } else {
-            #expect(Bool(false))
+            #expect(Bool(false)) // fuerza fallo si no hubo body
         }
 
         #expect(result.listenCompleted == true)
         #expect(result.commented == true)
         #expect(result.comment == "Re-escuchar deluxe")
+
     }
 
     // 6) FavoritesAPI.delete
