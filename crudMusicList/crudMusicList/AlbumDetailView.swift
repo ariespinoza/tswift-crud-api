@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AlbumDetailView: View {
     let album: Album
+    var body: some View { Text(album.name) }
     @State private var currentImageIndex = 0 //Estado de índice para el swipe de las imagenes de la portada
 
     var body: some View {

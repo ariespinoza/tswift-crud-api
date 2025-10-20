@@ -8,88 +8,63 @@
 
 import SwiftUI
 
-
 struct AddFavoritesSheet: View {
-    
-    @Environment(\.dismiss) private var dismiss
-    
-    @State private var name : String = ""
-    @State private var artist : String = ""
-    //@State private var dateAdded: Date = .now
-    @State private var favoriteSong : String = ""
-    @State private var listenCompleted: Bool = false
-    @State private var commented: Bool = false
-    @State private var comment : String = ""
-    
-    @State private var errorMessage: String?
-    
-    let onSave: (_ name: String, _ artist: String, _ favoriteSong: String?, _ listenCompleted: Bool, _ commented: Bool, _ comment: String?) -> Void
-    
+    @Environment(\.dismiss) var dismiss
+
+    @State private var name = ""
+    @State private var artist = ""
+    @State private var favoriteSong = ""
+    @State private var listenCompleted = false
+    @State private var commented = false
+    @State private var comment = ""
+
+    /// callback hacia el ViewModel
+    let onSave: (_ name: String,
+                 _ artist: String,
+                 _ favoriteSong: String?,
+                 _ listenCompleted: Bool,
+                 _ commented: Bool,
+                 _ comment: String?) -> Void
+
     var body: some View {
-        NavigationStack{
-            
-            
-            Form{
-                Section("Album") {
-                    TextField("Name", text: $name)
-                    TextField("Artist", text: $artist)
-                    DatePicker("Registration Date", selection: $dateAdded, displayedComponents: .date)
-                    TextField("Favorite Song", text: $favoriteSong)
-                    Toggle("Have you listened the album complete?", isOn: $listenCompleted)
+        NavigationStack {
+            Form {
+                Section("Álbum") {
+                    TextField("Nombre", text: $name)
+                    TextField("Artista", text: $artist)
+                    TextField("Canción favorita", text: $favoriteSong)
                 }
-                Section("Comment") {
-                    Toggle("Add Comment", isOn: $commented)
-                    if commented {
-                        TextField("Write your comment", text: $comment, axis: .vertical)
-                            .lineLimit(4, reservesSpace: true)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled(true)
-                    }
+                Section("Estado") {
+                    Toggle("Escucha completada", isOn: $listenCompleted)
+                    Toggle("Comentado", isOn: $commented)
+                    TextField("Comentario", text: $comment, axis: .vertical)
+                        .lineLimit(3...6)
                 }
-                
             }
-            .navigationTitle("Add Favorite")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar{
-                ToolbarItemGroup(placement: .topBarLeading){
-                    Button("Cancel"){
+            .navigationTitle("Nuevo favorito")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Guardar") {
+                        onSave(
+                            name,
+                            artist,
+                            favoriteSong.isEmpty ? nil : favoriteSong,
+                            listenCompleted,
+                            commented,
+                            comment.isEmpty ? nil : comment
+                        )
                         dismiss()
                     }
+                    .disabled(name.isEmpty || artist.isEmpty)
                 }
-                ToolbarItemGroup(placement: .topBarTrailing){
-                    Button("Save") {
-                    guard Favorite.isValidName(name) else { return }
-                        let favorite = Favorite(name: name, artist: artist, dateAdded: dateAdded, favoriteSong: favoriteSong, listenCompleted: listenCompleted, commented: commented, comment: comment)
-                    context.insert(favorite)
-                        do {
-                            try? context.save()
-                            dismiss()
-                        } catch {
-                            errorMessage = "Failed to save the favorite album: \(error.localizedDescription)"
-                        }
-                    }
-                    .disabled(!Favorite.isValidName(name))
-
-                    /*Button("Save"){
-                        let favorite = Favorite(name: name, artist: artist, dateAdded: dateAdded, favoriteSong: favoriteSong, listenCompleted: listenCompleted, commented: commented, comment: comment)
-                        context.insert(favorite)
-                        do {
-                            try! context.save()
-                            dismiss()
-                        } catch {
-                            errorMessage = "Failed to save the favorite album: \(error.localizedDescription)"
-                        }
-                    }*/
-                }
-            }
-            .alert("Error", isPresented: .constant(errorMessage != nil), presenting: errorMessage) { _ in
-                Button("OK", role: .cancel) { errorMessage = nil }  // Reset error
-            } message: { msg in
-                Text(msg)
             }
         }
     }
 }
+
 #Preview {
    AddFavoritesSheet()
 }

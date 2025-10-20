@@ -9,17 +9,17 @@ import Foundation
 import SwiftData
 
 @Model
-class Favorite {
+class Favorite: Codable, Identifiable, Equatable {
     var id: Int?
     var name: String
     var artist: String
-    var dateAdded : Date
-    var favoriteSong : String
+    var dateAdded : String?
+    var favoriteSong : String?
     var listenCompleted : Bool
     var commented : Bool
-    var comment : String
+    var comment : String?
     
-    init(id: Int? = nil, name: String, artist: String, dateAdded: Date, favoriteSong: String, listenCompleted: Bool, commented: Bool, comment: String) {
+    init(id: Int? = nil, name: String, artist: String, dateAdded: String?, favoriteSong: String?, listenCompleted: Bool, commented: Bool, comment: String?) {
         self.id = id
         self.name = name
         self.artist = artist

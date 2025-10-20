@@ -1,7 +1,11 @@
+
+
 import Foundation
 
 final class FavoritesAPI {
     private let base = URL(string: APIConfig.baseURL)!
+    private let dec = JSONDecoder()
+    private let enc = JSONEncoder()
 
     func list() async throws -> [Favorite] {
         let url = base.appendingPathComponent("favorites")
@@ -9,7 +13,7 @@ final class FavoritesAPI {
         guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        return try JSONDecoders.api.decode([Favorite].self, from: data)
+        return try dec.decode([Favorite].self, from: data)
     }
 
     func create(name: String,
@@ -37,7 +41,7 @@ final class FavoritesAPI {
         guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        return try JSONDecoders.api.decode(Favorite.self, from: data)
+        return try dec.decode(Favorite.self, from: data)
     }
 
     func update(id: Int,
@@ -65,7 +69,7 @@ final class FavoritesAPI {
         guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw URLError(.badServerResponse)
         }
-        return try JSONDecoders.api.decode(Favorite.self, from: data)
+        return try dec.decode(Favorite.self, from: data)
     }
 
     func delete(id: Int) async throws {
