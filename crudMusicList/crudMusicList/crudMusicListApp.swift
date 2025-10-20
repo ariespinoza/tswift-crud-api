@@ -12,9 +12,9 @@ import SwiftData
 struct crudMusicListApp: App {
     var body: some Scene {
         WindowGroup {
-            FavoriteAlbumView()
+            ContentView()
         }
-        .modelContainer(for: [Favorite.self])
+        
         
     }
 }

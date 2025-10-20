@@ -7,7 +7,6 @@
 
 import Testing
 import Foundation
-import SwiftData
 @testable import crudMusicList
 
 
@@ -40,7 +39,7 @@ struct crudMusicListTests {
         let ctx = container.mainContext
 
         // Create
-        let favorite = Favorite(name: "Test Album", artist: "Test Artist", dateAdded: Date(),
+        let favorite = Favorite(name: "Test Album", artist: "Test Artist", dateAdded: "07/07/2005",
                                 favoriteSong: "Test Song", listenCompleted: true, commented: true, comment: "Great album!")
         ctx.insert(favorite)
         try ctx.save()

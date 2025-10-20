@@ -8,8 +8,8 @@
 import Foundation
 import SwiftData
 
-@Model
-class Favorite: Identifiable {
+
+struct Favorite: Codable, Identifiable, Equatable {
     var id: Int?
     var name: String
     var artist: String
@@ -30,8 +30,11 @@ class Favorite: Identifiable {
         self.comment = comment
     }
     
+    /*
     static func isValidName(_ name: String) -> Bool {
     !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+     
+     */
 
 }
