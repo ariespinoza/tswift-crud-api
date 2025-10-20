@@ -2,30 +2,51 @@
 //  crudMusicListTests.swift
 //  crudMusicListTests
 //
-//  Created by Emmy Molina Palma on 1/10/25.
+//  Created by Ariana Espinoza on 1/10/25.
+//
+
+//
+//  crudMusicListTests.swift
+//  crudMusicListTests
+//
+//  Tests para API remota (JSON) sin SwiftData.
+//  - MockURLProtocol para interceptar requests
+//  - Aserciones SIEMPRE fuera del handler (framework `Testing`)
 //
 
 import Testing
 import Foundation
 @testable import crudMusicList
 
-// MARK: - Mock URLProtocol
+// MARK: - Mock URLProtocol (captura la última request)
 
 final class MockURLProtocol: URLProtocol {
-    // ruta (o método+ruta) -> handler
-    static var handlers: [(URLRequest) -> (Int, Data)] = []
+    /// Respuesta simulada para la próxima request
+    static var responder: ((URLRequest) -> (Int, Data))?
+    /// Última request capturada (para aserciones en el test)
+    static var lastRequest: URLRequest?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let handler = MockURLProtocol.handlers.first else {
+        // Guarda la request para que el test la pueda inspeccionar
+        Self.lastRequest = request
+
+        guard let responder = Self.responder else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
         }
-        let (status, data) = handler(request)
-        let resp = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type":"application/json"])!
-        client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
+        let (status, data) = responder(request)
+
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: status,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)
     }
@@ -33,7 +54,7 @@ final class MockURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
-func makeMockSession() -> URLSession {
+private func makeMockSession() -> URLSession {
     let cfg = URLSessionConfiguration.ephemeral
     cfg.protocolClasses = [MockURLProtocol.self]
     return URLSession(configuration: cfg)
@@ -42,21 +63,23 @@ func makeMockSession() -> URLSession {
 // MARK: - Helpers
 
 private func jsonData(_ obj: Any) -> Data {
-    try! JSONSerialization.data(withJSONObject: obj, options: [.withoutEscapingSlashes])
+    // Opciones vacías para máxima compatibilidad del SDK
+    return try! JSONSerialization.data(withJSONObject: obj, options: [])
 }
 
 // MARK: - Tests
 
+@MainActor
 struct crudMusicListTests {
 
-    // Test 1: nombre no vacío
+    // 1) Validación simple: nombre no vacío
     @Test
     func validateNonEmptyName() async throws {
         let name = "  "
         #expect(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
-    // Test 2: decodificación de /albums (array plano)
+    // 2) Decodificación de /albums (array directo)
     @Test
     func decodeAlbumsArray() async throws {
         let sample: [[String: Any]] = [
@@ -75,83 +98,139 @@ struct crudMusicListTests {
         #expect(albums.first?.trackList.count == 2)
     }
 
-    // Test 3: FavoritesAPI.list
+    // 3) FavoritesAPI.list
     @Test
     func favorites_list_returns_items() async throws {
-        MockURLProtocol.handlers = [ { _ in
+        MockURLProtocol.responder = { _ in
             let sample: [[String: Any]] = [
-                ["id": 1, "name": "1989", "artist": "Taylor Swift",
-                 "dateAdded": "2025-10-20T02:30:58.325444",
-                 "favoriteSong": "Blank Space",
-                 "listenCompleted": true, "commented": true, "comment": "Top!"]
+                [
+                    "id": 1,
+                    "name": "1989",
+                    "artist": "Taylor Swift",
+                    "dateAdded": "2025-10-20T02:30:58.325444",
+                    "favoriteSong": "Blank Space",
+                    "listenCompleted": true,
+                    "commented": true,
+                    "comment": "Top!"
+                ]
             ]
             return (200, jsonData(sample))
-        } ]
+        }
+        MockURLProtocol.lastRequest = nil
+
         let api = FavoritesAPI(session: makeMockSession())
         let result = try await api.list()
+
+        // No hay aserciones dentro del handler: se hacen aquí
+        let req = MockURLProtocol.lastRequest
+        #expect(req?.httpMethod == "GET")
+        #expect(req?.url?.absoluteString.hasSuffix("/favorites") == true)
+
         #expect(result.count == 1)
         #expect(result.first?.name == "1989")
         #expect(result.first?.artist == "Taylor Swift")
     }
 
-    // Test 4: FavoritesAPI.create (verifica método y body)
+    // 4) FavoritesAPI.create (método y body correctos)
     @Test
     func favorites_create_posts_body() async throws {
-        MockURLProtocol.handlers = [ { req in
-            #expect(req.httpMethod == "POST")
-            let sent = try! JSONSerialization.jsonObject(with: req.httpBody ?? Data()) as? [String: Any]
-            #expect(sent?["name"] as? String == "Red")
-            #expect(sent?["artist"] as? String == "Taylor Swift")
-            let created: [String: Any] = [
-                "id": 10, "name": "Red", "artist": "Taylor Swift",
-                "dateAdded": "2025-10-20T02:31:00.000000",
-                "favoriteSong": "Begin Again",
-                "listenCompleted": false, "commented": false, "comment": "Por probar"
-            ]
-            return (201, jsonData(created))
-        } ]
+        let created: [String: Any] = [
+            "id": 10,
+            "name": "Red",
+            "artist": "Taylor Swift",
+            "dateAdded": "2025-10-20T02:31:00.000000",
+            "favoriteSong": "Begin Again",
+            "listenCompleted": false,
+            "commented": false,
+            "comment": "Por probar"
+        ]
+
+        MockURLProtocol.responder = { _ in (201, jsonData(created)) }
+        MockURLProtocol.lastRequest = nil
+
         let api = FavoritesAPI(session: makeMockSession())
-        let fav = try await api.create(name: "Red", artist: "Taylor Swift",
-                                       favoriteSong: "Begin Again",
-                                       listenCompleted: false, commented: false, comment: "Por probar")
+        let fav = try await api.create(
+            name: "Red",
+            artist: "Taylor Swift",
+            favoriteSong: "Begin Again",
+            listenCompleted: false,
+            commented: false,
+            comment: "Por probar"
+        )
+
+        let req = MockURLProtocol.lastRequest
+        #expect(req?.httpMethod == "POST")
+        #expect(req?.url?.absoluteString.hasSuffix("/favorites") == true)
+
+        if let body = req?.httpBody,
+           let sent = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
+            #expect(sent["name"] as? String == "Red")
+            #expect(sent["artist"] as? String == "Taylor Swift")
+            #expect(sent["favoriteSong"] as? String == "Begin Again")
+            #expect(sent["listenCompleted"] as? Bool == false)
+            #expect(sent["commented"] as? Bool == false)
+        } else {
+            #expect(Bool(false)) // fuerza fallo si no hubo body
+        }
+
         #expect(fav.id == 10)
         #expect(fav.name == "Red")
     }
 
-    // Test 5: FavoritesAPI.update (PATCH)
+    // 5) FavoritesAPI.update (PATCH) con campos específicos
     @Test
     func favorites_update_patches_fields() async throws {
-        MockURLProtocol.handlers = [ { req in
-            #expect(req.httpMethod == "PATCH")
-            #expect(req.url?.absoluteString.hasSuffix("/favorites/10") == true)
-            let sent = try! JSONSerialization.jsonObject(with: req.httpBody ?? Data()) as? [String: Any]
-            #expect(sent?["comment"] as? String == "Re-escuchar deluxe")
-            let updated: [String: Any] = [
-                "id": 10, "name": "Red", "artist": "Taylor Swift",
-                "dateAdded": "2025-10-20T02:31:00.000000",
-                "favoriteSong": "Begin Again",
-                "listenCompleted": true, "commented": true, "comment": "Re-escuchar deluxe"
-            ]
-            return (200, jsonData(updated))
-        } ]
+        let updated: [String: Any] = [
+            "id": 10,
+            "name": "Red",
+            "artist": "Taylor Swift",
+            "dateAdded": "2025-10-20T02:31:00.000000",
+            "favoriteSong": "Begin Again",
+            "listenCompleted": true,
+            "commented": true,
+            "comment": "Re-escuchar deluxe"
+        ]
+
+        MockURLProtocol.responder = { _ in (200, jsonData(updated)) }
+        MockURLProtocol.lastRequest = nil
+
         let api = FavoritesAPI(session: makeMockSession())
-        let result = try await api.update(id: 10, comment: "Re-escuchar deluxe", listenCompleted: true, commented: true)
+        let result = try await api.update(
+            id: 10,
+            comment: "Re-escuchar deluxe",
+            listenCompleted: true,
+            commented: true
+        )
+
+        let req = MockURLProtocol.lastRequest
+        #expect(req?.httpMethod == "PATCH")
+        #expect(req?.url?.absoluteString.hasSuffix("/favorites/10") == true)
+
+        if let body = req?.httpBody,
+           let sent = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
+            #expect(sent["comment"] as? String == "Re-escuchar deluxe")
+            #expect(sent["listenCompleted"] as? Bool == true)
+            #expect(sent["commented"] as? Bool == true)
+        } else {
+            #expect(Bool(false))
+        }
+
         #expect(result.listenCompleted == true)
         #expect(result.commented == true)
         #expect(result.comment == "Re-escuchar deluxe")
     }
 
-    // Test 6: FavoritesAPI.delete
+    // 6) FavoritesAPI.delete
     @Test
     func favorites_delete_calls_endpoint() async throws {
-        MockURLProtocol.handlers = [ { req in
-            #expect(req.httpMethod == "DELETE")
-            #expect(req.url?.absoluteString.hasSuffix("/favorites/10") == true)
-            return (200, Data("{}““.utf8)) // cuerpo vacío/ok
-        } ]
+        MockURLProtocol.responder = { _ in (200, Data("{}".utf8)) }
+        MockURLProtocol.lastRequest = nil
+
         let api = FavoritesAPI(session: makeMockSession())
         try await api.delete(id: 10)
-        // Si no lanza error, pasa
-        #expect(true)
+
+        let req = MockURLProtocol.lastRequest
+        #expect(req?.httpMethod == "DELETE")
+        #expect(req?.url?.absoluteString.hasSuffix("/favorites/10") == true)
     }
 }
