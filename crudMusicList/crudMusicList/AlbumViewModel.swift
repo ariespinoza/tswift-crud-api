@@ -12,42 +12,27 @@ import Observation
 @MainActor
 class AlbumViewModel {
     var arrAlbums: [Album] = []
-    //Mensaje para el usuario de errores o estados
     var userMessage: String?
-    //Feedback de carga
     var isLoading = false
 
     private let endpoint = "\(APIConfig.baseURL)/albums"
 
-    //Single responsability: responsabilidad de traer los datos desde el API y actualiza el estado
     func loadAPI() async {
-            guard let url = URL(string: endpoint) else {
-                userMessage = "La URL del servicio es inválida."
+        guard let url = URL(string: endpoint) else {
+            userMessage = "La URL del servicio es inválida."
+            return
+        }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                userMessage = "Error del servidor."
                 return
             }
-
-            isLoading = true
-            defer { isLoading = false }  // se ejecuta al salir si fue un éxito o fallo
-
-            do {
-                let (data, response) = try await URLSession.shared.data(from: url)
-
-                //Validación de la respuesta del Http
-                guard let http = response as? HTTPURLResponse else {
-                    userMessage = "Respuesta inválida del servidor."
-                    return
-                }
-
-                guard http.statusCode == 200 else {
-                    //Clean code: mensaje legible y amigable para el usuario en lugar de solo números
-                    userMessage = "Error del servidor (código \(http.statusCode))."
-                    return
-                }
-
-                //Decoficicación de la información del JSON
-                let resp = try JSONDecoder().decode(AlbumsResponse.self, from: data)
-                self.arrAlbums = resp.items
-                self.userMessage = nil
+            self.arrAlbums = try JSONDecoder().decode([Album].self, from: data)
+            self.userMessage = nil
 
             } catch let error as URLError {
                 //Casos para depuración y saber cuál es el error
