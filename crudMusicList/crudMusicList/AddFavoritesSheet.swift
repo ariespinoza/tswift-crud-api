@@ -7,16 +7,15 @@
 
 
 import SwiftUI
-import SwiftData
+
 
 struct AddFavoritesSheet: View {
     
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) var context
     
     @State private var name : String = ""
     @State private var artist : String = ""
-    @State private var dateAdded: Date = .now
+    //@State private var dateAdded: Date = .now
     @State private var favoriteSong : String = ""
     @State private var listenCompleted: Bool = false
     @State private var commented: Bool = false
@@ -24,6 +23,7 @@ struct AddFavoritesSheet: View {
     
     @State private var errorMessage: String?
     
+    let onSave: (_ name: String, _ artist: String, _ favoriteSong: String?, _ listenCompleted: Bool, _ commented: Bool, _ comment: String?) -> Void
     
     var body: some View {
         NavigationStack{

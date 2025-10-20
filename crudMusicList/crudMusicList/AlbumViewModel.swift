@@ -17,10 +17,7 @@ class AlbumViewModel {
     //Feedback de carga
     var isLoading = false
 
-    //URL de API propia y endpoint centralizado para editarlo unicamente en una view
-    #if targetEnvironment(simulator)
-    private let endpoint = "http://localhost:4000/albums"
-    #endif
+    private let endpoint = "\(APIConfig.baseURL)/albums"
 
     //Single responsability: responsabilidad de traer los datos desde el API y actualiza el estado
     func loadAPI() async {

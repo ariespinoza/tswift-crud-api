@@ -8,6 +8,7 @@
 
 import Foundation
 
+/*
 struct Album : Identifiable, Decodable {
     var id = UUID()
     var name : String
@@ -28,3 +29,15 @@ struct AlbumsResponse: Decodable {
     let count: Int
     let items: [Album]
 }
+
+*/
+
+
+struct Album: Codable, Identifiable, Equatable {
+    let id: Int
+    let name: String
+    let imageName: [String]     
+    let releaseDate: String
+    let trackList: [String]
+}
+

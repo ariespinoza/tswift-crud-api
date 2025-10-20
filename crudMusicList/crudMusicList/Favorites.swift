@@ -10,6 +10,7 @@ import SwiftData
 
 @Model
 class Favorite {
+    var id: Int?
     var name: String
     var artist: String
     var dateAdded : Date
@@ -18,7 +19,8 @@ class Favorite {
     var commented : Bool
     var comment : String
     
-    init(name: String, artist: String, dateAdded: Date, favoriteSong: String, listenCompleted: Bool, commented: Bool, comment: String) {
+    init(id: Int? = nil, name: String, artist: String, dateAdded: Date, favoriteSong: String, listenCompleted: Bool, commented: Bool, comment: String) {
+        self.id = id
         self.name = name
         self.artist = artist
         self.dateAdded = dateAdded

@@ -10,57 +10,54 @@ import SwiftUI
 import SwiftData
 
 struct UpdateFavoriteSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) var context
-    
-    @Bindable var favorite : Favorite
-    @State private var errorMessage: String?
-    
+    @Environment(\.dismiss) var dismiss
+    @State private var name: String
+    @State private var artist: String
+    @State private var favoriteSong: String
+    @State private var listenCompleted: Bool
+    @State private var commented: Bool
+    @State private var comment: String
+
+    let onUpdate: (_ name: String?, _ artist: String?, _ favoriteSong: String?, _ listenCompleted: Bool?, _ commented: Bool?, _ comment: String?) -> Void
+
+    init(item: Favorite,
+         onUpdate: @escaping (_ name: String?, _ artist: String?, _ favoriteSong: String?, _ listenCompleted: Bool?, _ commented: Bool?, _ comment: String?) -> Void) {
+        _name = State(initialValue: item.name)
+        _artist = State(initialValue: item.artist)
+        _favoriteSong = State(initialValue: item.favoriteSong ?? "")
+        _listenCompleted = State(initialValue: item.listenCompleted)
+        _commented = State(initialValue: item.commented)
+        _comment = State(initialValue: item.comment ?? "")
+        self.onUpdate = onUpdate
+    }
+
     var body: some View {
-        NavigationStack{
-            
-            
-            Form{
-                Section("Album") {
-                    TextField("Name", text: $favorite.name)
-                    TextField("Artist", text: $favorite.artist)
-                    DatePicker("Registration Date", selection: $favorite.dateAdded, displayedComponents: .date)
-                    TextField("Favorite Song", text: $favorite.favoriteSong)
-                    Toggle("Have you listened the album complete?", isOn: $favorite.listenCompleted)
+        NavigationStack {
+            Form {
+                Section("Álbum") {
+                    TextField("Nombre", text: $name)
+                    TextField("Artista", text: $artist)
+                    TextField("Canción favorita", text: $favoriteSong)
                 }
-                Section("Comment") {
-                    Toggle("Add Comment", isOn: $favorite.commented)
-                    if favorite.commented {
-                        TextField("Write your comment", text: $favorite.comment, axis: .vertical)
-                            .lineLimit(4, reservesSpace: true)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled(true)
-                    }
+                Section("Estado") {
+                    Toggle("Escucha completada", isOn: $listenCompleted)
+                    Toggle("Comentado", isOn: $commented)
+                    TextField("Comentario", text: $comment, axis: .vertical)
+                        .lineLimit(3...6)
                 }
-                
             }
-            .navigationTitle("Add Favorite")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar{
-                ToolbarItemGroup(placement: .topBarLeading){
-                    Button("Cancel"){
+            .navigationTitle("Editar favorito")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Guardar") {
+                        onUpdate(name, artist,
+                                 favoriteSong.isEmpty ? nil : favoriteSong,
+                                 listenCompleted, commented,
+                                 comment.isEmpty ? nil : comment)
                         dismiss()
-                    }
+                    }.disabled(name.isEmpty || artist.isEmpty)
                 }
-                ToolbarItemGroup(placement: .topBarTrailing){
-                    Button("Done") {
-                        do {
-                            try context.save()
-                            dismiss()
-                        } catch {
-                            errorMessage = "Failed to save changes: \(error.localizedDescription)"
-                        }
-                    }
-                }
-            }
-            .alert("Error", isPresented: .constant(errorMessage != nil), presenting: errorMessage) { _ in Button("OK", role: .cancel) { errorMessage = nil }  // Reset error
-            } message: { msg in
-                Text(msg)
             }
         }
     }
