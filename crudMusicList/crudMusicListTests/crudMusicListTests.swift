@@ -214,9 +214,10 @@ struct crudMusicListTests {
         let api = FavoritesAPI(session: makeMockSession())
         let result = try await api.update(
             id: 10,
-            comment: "Re-escuchar deluxe",
             listenCompleted: true,
-            commented: true
+            commented: true,
+            comment: "Re-escuchar deluxe"
+            
         )
 
         let req = MockURLProtocol.lastRequest

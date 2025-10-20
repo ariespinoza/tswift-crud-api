@@ -8,7 +8,7 @@ final class FavoritesAPI {
     private let enc = JSONEncoder()
     private let session: URLSession
 
-    init(session: URLSession = .shared) { // <-- NUEVO
+    init(session: URLSession = .shared) { 
         self.session = session
     }
 
