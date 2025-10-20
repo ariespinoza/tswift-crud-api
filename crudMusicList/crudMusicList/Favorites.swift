@@ -9,7 +9,7 @@ import Foundation
 import SwiftData
 
 @Model
-class Favorite: Codable, Identifiable, Equatable {
+class Favorite: Identifiable {
     var id: Int?
     var name: String
     var artist: String
